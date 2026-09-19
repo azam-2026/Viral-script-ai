@@ -2,15 +2,17 @@
 
 import os
 import re
-
 import gradio as gr
-from g4f import Provider
-from g4f.client import Client
+import google.generativeai as genai
 
+# Official Google Gemini API Key
+GEMINI_API_KEY = "AQ.Ab8RN6KgiOUCHqzb--TIAKWAFoA6dL1tShw_GkROF8TL42QOZg"
+
+genai.configure(api_key=GEMINI_API_KEY)
 
 def generate_ai_text(topic: str) -> str:
-    """Ask the keyless public AI provider to create content for a topic."""
-    client = Client()
+    """Ask official free Gemini API to create content for a topic."""
+    model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""
 You are a senior short-form video strategist delivering a professional video
 blueprint. Create a high-retention 60-second short-form video for:
@@ -52,12 +54,8 @@ Requirements:
    add extra sections outside the labels above.
 """
 
-    response = client.chat.completions.create(
-        model="gemini-2.0-flash",
-        provider=Provider.Gemini,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    content = response.choices[0].message.content
+    response = model.generate_content(prompt)
+    content = response.text
     if not content:
         raise RuntimeError("The AI provider returned an empty response.")
     return content.strip()
@@ -107,7 +105,7 @@ def generate_content(topic: str) -> tuple[str, str, str, str, str, str, str]:
         blueprint = parse_content(generate_ai_text(topic))
         return (
             *blueprint,
-            "Generated a live professional blueprint with a public AI provider.",
+            "Generated a live professional blueprint with Official Gemini AI.",
         )
     except Exception as error:
         return (
