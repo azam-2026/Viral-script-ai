@@ -13,7 +13,7 @@ def generate_script(topic):
     
     try:
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="mixtral-8x7b-32768",
             messages=[{
                 "role": "user",
                 "content": f"Write a complete viral video script, retention hooks, and hashtags for: {topic}"
