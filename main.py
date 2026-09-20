@@ -7,21 +7,34 @@ GROQ_API_KEY = "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"
 
 client = Groq(api_key=GROQ_API_KEY)
 
+# Permanent Fallback Models List (Ek fail hoga toh doosra auto-try hoga)
+MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "llama3-70b-8192",
+    "gemma2-9b-it"
+]
+
 def generate_script(topic):
     if not topic or not topic.strip():
         return "Please enter a topic!"
     
-    try:
-        completion = client.chat.completions.create(
-            model="mixtral-8x7b-32768",
-            messages=[{
-                "role": "user",
-                "content": f"Write a complete viral video script, retention hooks, and hashtags for: {topic}"
-            }]
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Error: {str(e)}"
+    last_error = ""
+    for model_name in MODELS:
+        try:
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[{
+                    "role": "user",
+                    "content": f"Write a complete viral video script, retention hooks, and hashtags for: {topic}"
+                }]
+            )
+            return completion.choices[0].message.content
+        except Exception as e:
+            last_error = str(e)
+            continue
+            
+    return f"Error: {last_error}"
 
 demo = gr.Interface(
     fn=generate_script,
