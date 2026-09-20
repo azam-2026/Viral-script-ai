@@ -5,8 +5,14 @@ import urllib.request
 import urllib.parse
 import gradio as gr
 
-# Render par SSL Certificate error bypass karne ke liye
 ssl_context = ssl._create_unverified_context()
+
+# TERI CONFIGURATION (Yahan apna Admin Code aur Payment Link set kar)
+ADMIN_SECRET_KEY = "AZAM2026"  # Ye tera Secret Code hai
+PAYMENT_LINK = "https://razorpay.me/@yourlink" # Tera Razorpay UPI Payment Link
+
+# Session tracker for free limit
+user_usage = {}
 
 def fallback_local_script(topic):
     topic_cap = topic.strip().capitalize()
@@ -16,7 +22,7 @@ def fallback_local_script(topic):
 "Ruko! Agar tum {topic_cap} me grow karna chahte ho, toh ye 3 galtiyan bilkul mat karna!"
 
 --- 2. RETENTION INTRO (3-10 sec) ---
-"90% log {topic_cap} me fail ho jaate hain kyunki wo galat tarika use karte hain. Aaj main bataunga secret formula jo kaam karta hai."
+"90% log {topic_cap} me fail ho jaate hain. Aaj main bataunga secret formula jo kaam karta hai."
 
 --- 3. MAIN VALUE CONTENT (10-45 sec) ---
 • Tip 1: Consistency aur clear strategy banao.
@@ -24,19 +30,42 @@ def fallback_local_script(topic):
 • Tip 3: Audience ke sath strong connection banao.
 
 --- 4. CALL TO ACTION (CTA) ---
-"Agar ye tips helpful lagi toh abhi LIKE aur FOLLOW karo daily viral content ke liye!"
+"Agar ye tips helpful lagi toh abhi LIKE aur FOLLOW karo!"
 
 --- 5. VIRAL HASHTAGS ---
-#{topic_cap.replace(' ', '')} #ViralReels #TrendingNow #ContentCreation #GrowthHacks
+#{topic_cap.replace(' ', '')} #ViralReels #TrendingNow #ContentCreation
 """
 
-def generate_script(topic):
+def generate_script(topic, license_key, request: gr.Request):
     if not topic or not topic.strip():
         return "Please enter a topic!"
     
+    # Check Admin Pass
+    if license_key and license_key.strip() == ADMIN_SECRET_KEY:
+        is_admin = True
+    else:
+        is_admin = False
+
+    # Free Limit Tracking
+    client_ip = request.client.host if request else "default_user"
+    
+    if not is_admin:
+        current_count = user_usage.get(client_ip, 0)
+        if current_count >= 2:
+            return f"""🔒 FREE LIMIT EXHAUSTED!
+
+Aapki 2 free scripts complete ho chuki hain. Unlimited access ke liye subscription lein:
+
+👉 Unlock Unlimited Scripts (₹299/Month):
+{PAYMENT_LINK}
+
+(Payment ke baad Admin Code activate karwane ke liye DM karein)
+"""
+        user_usage[client_ip] = current_count + 1
+
     prompt = f"Write a complete viral video script, retention hooks, body content, CTA, and hashtags for topic: {topic}"
     
-    # 1. Try Online AI Models with SSL Bypass
+    # Try AI Models
     models = ["openai", "mistral", "qwen"]
     for m in models:
         try:
@@ -50,12 +79,8 @@ def generate_script(topic):
             }).encode('utf-8')
             
             req = urllib.request.Request(
-                url,
-                data=payload,
-                headers={
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                }
+                url, data=payload, 
+                headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
             )
             with urllib.request.urlopen(req, context=ssl_context, timeout=10) as response:
                 result = response.read().decode('utf-8')
@@ -64,30 +89,24 @@ def generate_script(topic):
         except Exception:
             continue
 
-    # 2. Secondary AI GET Request Backup
-    try:
-        encoded_prompt = urllib.parse.quote(prompt)
-        url_get = f"https://text.pollinations.ai/{encoded_prompt}"
-        req_get = urllib.request.Request(
-            url_get,
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        with urllib.request.urlopen(req_get, context=ssl_context, timeout=10) as response:
-            result = response.read().decode('utf-8')
-            if result and len(result.strip()) > 30:
-                return result
-    except Exception:
-        pass
-
-    # 3. 100% Guaranteed Local Script Generator (Never fails)
     return fallback_local_script(topic)
 
-demo = gr.Interface(
-    fn=generate_script,
-    inputs=gr.Textbox(label="Video Topic", placeholder="Enter topic (e.g. Fitness, Boxing, Youtube)..."),
-    outputs=gr.Textbox(label="Generated Script"),
-    title="Viral AI Script Generator"
-)
+# Gradio Interface Setup
+with gr.Blocks(title="Viral AI Script Generator") as demo:
+    gr.Markdown("# 🚀 Viral AI Script Generator (SaaS)")
+    
+    with gr.Row():
+        topic_input = gr.Textbox(label="Video Topic", placeholder="Enter topic (e.g. Fitness, Boxing, Youtube)...")
+        key_input = gr.Textbox(label="Admin / License Key (Optional)", placeholder="Enter Secret Pass for Unlimited Access...", type="password")
+    
+    submit_btn = gr.Button("Generate Script", variant="primary")
+    output_text = gr.Textbox(label="Generated Script / Output", lines=12)
+    
+    submit_btn.click(
+        fn=generate_script,
+        inputs=[topic_input, key_input],
+        outputs=output_text
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
