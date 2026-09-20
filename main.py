@@ -2,28 +2,25 @@ import os
 import gradio as gr
 from groq import Groq
 
-# Teri Groq API key pre-filled hai
 GROQ_API_KEY = "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"
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# Permanent Fallback Models List (Ek fail hoga toh doosra auto-try hoga)
+# Official Active Groq Production Models
 MODELS = [
-    "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "llama3-70b-8192",
-    "gemma2-9b-it"
+    "llama-3.3-70b-versatile"
 ]
 
 def generate_script(topic):
     if not topic or not topic.strip():
         return "Please enter a topic!"
     
-    last_error = ""
-    for model_name in MODELS:
+    errors = []
+    for model_id in MODELS:
         try:
             completion = client.chat.completions.create(
-                model=model_name,
+                model=model_id,
                 messages=[{
                     "role": "user",
                     "content": f"Write a complete viral video script, retention hooks, and hashtags for: {topic}"
@@ -31,10 +28,10 @@ def generate_script(topic):
             )
             return completion.choices[0].message.content
         except Exception as e:
-            last_error = str(e)
+            errors.append(f"{model_id}: {str(e)}")
             continue
             
-    return f"Error: {last_error}"
+    return "Error:\n" + "\n".join(errors)
 
 demo = gr.Interface(
     fn=generate_script,
