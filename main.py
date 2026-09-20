@@ -33,4 +33,4 @@ demo = gr.Interface(
 if __name__ == "__main__":
     # Render dynamic port fix
     port = int(os.environ.get("PORT", 7860))
-    demo.launch(server_name="0.0.0.0", server_port=port
+    demo.launch(server_name="0.0.0.0",
