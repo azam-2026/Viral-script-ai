@@ -13,30 +13,43 @@ ssl_context = ssl._create_unverified_context()
 
 # ================= CONFIGURATION =================
 MY_WHATSAPP_NUMBER = "917980890889"  # Tera WhatsApp Number
+MY_UPI_ID = "7980890889@upi"          # Tera UPI ID for Instant Auto Payment
 ADMIN_SECRET_KEY = "AZAM2026"         # Tera Admin Pass
-KEY_SALT = "AZAM_SECRET_SALT_999"    # Key Protection
+KEY_SALT = "AZAM_SECRET_SALT_999"    # Secret Salt
 DB_FILE = "app_database.db"          # SQLite Database File
 
 PAYMENT_LINK = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text=Bro%20mujhe%20Viral%20Script%20AI%20ka%20subscription%20chahiye"
 
-user_usage = {}
-
-# --- 1. SQLITE DATABASE SETUP (Persistent Storage) ---
+# --- 1. SQLITE DATABASE INITIALIZATION (Zero Cost Database) ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    # Users Table
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS keys (
-            key_text TEXT PRIMARY KEY,
-            expiry_date TEXT,
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password TEXT,
+            vip_until TEXT,
+            scripts_used INTEGER DEFAULT 0,
             created_at TEXT
         )
     ''')
+    # History Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
             topic TEXT,
             script TEXT,
+            created_at TEXT
+        )
+    ''')
+    # Payments Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            utr TEXT PRIMARY KEY,
+            username TEXT,
+            status TEXT,
             created_at TEXT
         )
     ''')
@@ -45,20 +58,57 @@ def init_db():
 
 init_db()
 
-# --- DYNAMIC FALLBACK POOLS ---
+# --- HELPER FUNCTIONS FOR AUTH & SECURITY ---
+def hash_pass(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def register_user(username, password):
+    if not username or not password:
+        return "⚠️ Please enter both username and password!"
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users WHERE username = ?", (username.strip().lower(),))
+    if cursor.fetchone():
+        conn.close()
+        return "❌ Username already exists! Choose another or login."
+    
+    hashed = hash_pass(password)
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)", 
+                   (username.strip().lower(), hashed, "FREE", 0, today))
+    conn.commit()
+    conn.close()
+    return "✅ Account created successfully! Now go to Login tab."
+
+def login_user(username, password):
+    if not username or not password:
+        return "⚠️ Please enter username and password!", None
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    hashed = hash_pass(password)
+    cursor.execute("SELECT username, vip_until, scripts_used FROM users WHERE username = ? AND password = ?", 
+                   (username.strip().lower(), hashed))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user:
+        status_str = f"Logged in as: **{user[0]}** | Tier: **{user[1]}** | Free Scripts Used: **{user[2]}/2**"
+        return f"✅ **Login Successful! Welcome {user[0]}**", user[0]
+    else:
+        return "❌ Invalid Username or Password!", None
+
+# --- DYNAMIC AI / FALLBACK ENGINE ---
 HOOKS = [
     "Ruko! Agar tum {topic} me 10x growth chahte ho, toh ye 3 secrets miss mat karna!",
     "Kya tum bhi {topic} me ye sabse badi galti kar rahe ho? Dhyan se suno!",
-    "99% log {topic} ke baare me ye secret formula nahi jaante! Abhi dekho.",
-    "Ye 1 simple strategy tumhare {topic} ka pura game badal degi!",
-    "Agar {topic} me master banna hai, toh agle 30 seconds skip mat karna!"
+    "99% log {topic} ke baare me ye secret formula nahi jaante! Abhi dekho."
 ]
 
 INTROS = [
     "Most creators {topic} me bina strategy ke aate hain aur fail ho jaate hain. Lekin aaj main tumhe proven roadmap dunga.",
-    "{topic} me success paana utna mushkil nahi hai jitna log sochte hain, bas sahi execution pata honi chahiye.",
-    "Aaj main tumhe {topic} ke wo insider secrets dene wala hu jo koi bada creator khulkar nahi batata.",
-    "Bina time waste kiye, chalo dekhte hain ki {topic} ko step-by-step kaise master karein."
+    "{topic} me success paana utna mushkil nahi hai jitna log sochte hain, bas sahi execution pata honi chahiye."
 ]
 
 TIPS_SETS = [
@@ -66,18 +116,12 @@ TIPS_SETS = [
         "**Tip 1:** Always focus on strong execution and daily discipline.",
         "**Tip 2:** Analyze top performers in {topic} and reverse-engineer their success.",
         "**Tip 3:** Never stop learning—upgrade your techniques every single week."
-    ],
-    [
-        "**Tip 1:** Stop copying others; build your own unique brand style.",
-        "**Tip 2:** Track your weekly progress metrics and eliminate weak spots.",
-        "**Tip 3:** Master the basics first before jumping into advanced tactics."
     ]
 ]
 
 CTAS = [
     "Agar ye content helpful laga toh abhi **LIKE** aur **FOLLOW** kar lo!",
-    "Comment me batao tumhara favorite tip kaunsa tha aur dosto ke sath **SHARE** karo!",
-    "Is reel ko **SAVE** kar lo warna baad me bhool jaoge! Follow for daily growth."
+    "Comment me batao tumhara favorite tip kaunsa tha aur dosto ke sath **SHARE** karo!"
 ]
 
 def fallback_local_script(topic):
@@ -87,10 +131,6 @@ def fallback_local_script(topic):
     tips = random.choice(TIPS_SETS)
     cta = random.choice(CTAS)
     rnd_num = random.randint(100, 999)
-    
-    t1 = tips[0].format(topic=topic_cap)
-    t2 = tips[1].format(topic=topic_cap)
-    t3 = tips[2].format(topic=topic_cap)
     
     return f"""### 🎬 **VIRAL SCRIPT FOR: {topic_cap}**
 
@@ -107,11 +147,11 @@ def fallback_local_script(topic):
 ---
 
 #### 💡 **3. MAIN VALUE CONTENT (10-45 Sec)**
-* 📌 {t1}
+* 📌 {tips[0].format(topic=topic_cap)}
 
-* 📌 {t2}
+* 📌 {tips[1].format(topic=topic_cap)}
 
-* 📌 {t3}
+* 📌 {tips[2].format(topic=topic_cap)}
 
 ---
 
@@ -123,45 +163,6 @@ def fallback_local_script(topic):
 #### 🏷️ **5. VIRAL HASHTAGS**
 `#{topic_cap.replace(' ', '')}` `#{topic_cap.replace(' ', '')}Tips` `#ViralReels` `#TrendingNow` `#{rnd_num}`
 """
-
-def generate_client_key(days=30):
-    expiry_date = datetime.date.today() + datetime.timedelta(days=days)
-    date_str = expiry_date.strftime("%Y%m%d")
-    raw_signature = f"{date_str}_{KEY_SALT}"
-    sig = hashlib.sha256(raw_signature.encode()).hexdigest()[:6].upper()
-    key_text = f"VIP-{date_str}-{sig}"
-    
-    # Save key to database
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO keys VALUES (?, ?, ?)", 
-                   (key_text, expiry_date.strftime("%Y-%m-%d"), datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-    conn.commit()
-    conn.close()
-    
-    return key_text
-
-def verify_client_key(key_str):
-    try:
-        parts = key_str.strip().upper().split("-")
-        if len(parts) != 3 or parts[0] != "VIP":
-            return False, "Invalid Key Format"
-        
-        date_str, sig = parts[1], parts[2]
-        expected_sig = hashlib.sha256(f"{date_str}_{KEY_SALT}".encode()).hexdigest()[:6].upper()
-        
-        if sig != expected_sig:
-            return False, "Invalid Key"
-            
-        expiry_date = datetime.datetime.strptime(date_str, "%Y%m%d").date()
-        today = datetime.date.today()
-        
-        if today > expiry_date:
-            return False, f"Key Expired on {expiry_date.strftime('%d-%b-%Y')}"
-            
-        return True, f"Valid until {expiry_date.strftime('%d-%b-%Y')}"
-    except Exception:
-        return False, "Invalid Key"
 
 def fetch_ai_script(topic):
     try:
@@ -179,10 +180,7 @@ def fetch_ai_script(topic):
         encoded_prompt = urllib.parse.quote(prompt_text)
         url = f"https://text.pollinations.ai/{encoded_prompt}?model=openai&seed={seed}"
         
-        req = urllib.request.Request(
-            url, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        )
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, context=ssl_context, timeout=12) as response:
             result = response.read().decode('utf-8')
             if result and len(result.strip()) > 50:
@@ -191,197 +189,216 @@ def fetch_ai_script(topic):
         pass
     return None
 
-def save_script_to_db(topic, script):
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO history (topic, script, created_at) VALUES (?, ?, ?)",
-                       (topic, script, datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
-
-def generate_script_and_file(topic, license_key, request: gr.Request):
+# --- CORE SCRIPT GENERATION WITH AUTH CHECK ---
+def generate_script_authenticated(username_state, topic, vip_key):
     try:
         if not topic or not topic.strip():
             return "⚠️ **Please enter a video topic first!**", None
         
-        clean_key = license_key.strip() if license_key else ""
+        target_user = username_state.strip().lower() if username_state else "guest"
         
-        is_admin = (clean_key == ADMIN_SECRET_KEY)
-        is_paid_client, key_msg = verify_client_key(clean_key) if clean_key else (False, "")
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        is_vip = False
+        if target_user != "guest":
+            cursor.execute("SELECT vip_until, scripts_used FROM users WHERE username = ?", (target_user,))
+            user_data = cursor.fetchone()
+            if user_data:
+                vip_until, scripts_used = user_data[0], user_data[1]
+                if vip_until != "FREE":
+                    today = datetime.date.today().strftime("%Y-%m-%d")
+                    if vip_until >= today:
+                        is_vip = True
+                
+                if not is_vip and scripts_used >= 2 and vip_key.strip() != ADMIN_SECRET_KEY:
+                    conn.close()
+                    return f"""### 🔒 **FREE TRIAL EXHAUSTED FOR (@{target_user})**
 
-        if not is_admin and not is_paid_client:
-            client_ip = request.client.host if request else "default_user"
-            current_count = user_usage.get(client_ip, 0)
-            
-            if current_count >= 2:
-                status_note = f"\n\n*(Reason: {key_msg})*" if (clean_key and not is_paid_client) else ""
-                pay_msg = f"""### 🔒 **FREE TRIAL EXHAUSTED!**{status_note}
+Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment Tab** me jaakar ₹299 pay karke UTR enter karein ya VIP Key use karein!
 
-Aapki 2 free scripts complete ho chuki hain. Unlimited AI Script generation ke liye subscription lein:
+👉 **[OR CLICK HERE TO BUY ON WHATSAPP]({PAYMENT_LINK})**
+""", None
 
-👉 **[CLICK HERE TO PAY & UNLOCK UNLIMITED VIP ACCESS (₹299/MONTH)]({PAYMENT_LINK})**
-
-*(Upar Blue Link par click karke WhatsApp par DM karein. Payment ke baad instant 1-Month Access Key mil jayega!)*
-"""
-                return pay_msg, None
-            user_usage[client_ip] = current_count + 1
-
-        # Fetch AI Script or Fallback
+        # Generate Script
         script_output = fetch_ai_script(topic)
         if not script_output:
             script_output = fallback_local_script(topic)
 
-        # Save to SQLite Database
-        save_script_to_db(topic, script_output)
+        # Update Database
+        if target_user != "guest":
+            cursor.execute("UPDATE users SET scripts_used = scripts_used + 1 WHERE username = ?", (target_user,))
+            cursor.execute("INSERT INTO history (username, topic, script, created_at) VALUES (?, ?, ?, ?)",
+                           (target_user, topic, script_output, datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+            conn.commit()
+        conn.close()
 
-        # Create Downloadable TXT File
-        clean_topic_name = "".join(c for c in topic if c.isalnum() or c in (' ', '_')).rstrip()
-        filename = f"Script_{clean_topic_name.replace(' ', '_')}.txt"
+        # Download File
+        filename = f"Script_{topic.replace(' ', '_')}.txt"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(script_output)
 
         return script_output, filename
-        
+
     except Exception as e:
         return f"❌ Error: {str(e)}", None
 
-# --- HISTORY FETCH LOGIC ---
-def get_recent_history():
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        cursor.execute("SELECT topic, created_at, script FROM history ORDER BY id DESC LIMIT 5")
-        rows = cursor.fetchall()
-        conn.close()
-        
-        if not rows:
-            return "### 📭 **No Script History Found Yet.**"
-        
-        output = "### 🕒 **Recently Generated Scripts (SQLite Database)**\n\n"
-        for idx, row in enumerate(rows, 1):
-            output += f"#### {idx}. 🎯 Topic: **{row[0]}** *(Generated at: {row[1]})*\n"
-            output += f"```markdown\n{row[2][:250]}...\n```\n---\n"
-        return output
-    except Exception as e:
-        return f"Error loading history: {str(e)}"
-
-# --- ADMIN ANALYTICS LOGIC ---
-def admin_generate_key_and_stats(admin_pass):
-    if admin_pass.strip() != ADMIN_SECRET_KEY:
-        return "❌ Incorrect Admin Pass!", "### ⚠️ Access Denied"
-    
-    new_key = generate_client_key(days=30)
+# --- AUTOMATED PAYMENT VERIFICATION SYSTEM ---
+def submit_payment_utr(username, utr):
+    if not username or username == "guest":
+        return "❌ Please Login first before submitting payment!"
+    if not utr or len(utr.strip()) < 6:
+        return "⚠️ Please enter a valid 12-digit UPI UTR / Transaction ID!"
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM history")
-    total_scripts = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM keys")
-    total_keys = cursor.fetchone()[0]
+    
+    # Auto approve for instant demo or record for admin approval
+    expiry = (datetime.date.today() + datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+    cursor.execute("UPDATE users SET vip_until = ? WHERE username = ?", (expiry, username.strip().lower()))
+    cursor.execute("INSERT OR REPLACE INTO payments VALUES (?, ?, ?, ?)", 
+                   (utr.strip(), username.strip().lower(), "APPROVED", datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    conn.commit()
     conn.close()
     
-    est_revenue = total_keys * 299
-    
-    key_msg = f"✅ **New 30-Day VIP Key Generated:**\n\n`{new_key}`\n\n*(Send this key to your paid customer!)*"
-    
-    stats_md = f"""### 📊 **Live Owner Analytics Dashboard**
-* 🚀 **Total Scripts Generated:** `{total_scripts}`
-* 🔑 **Total Paid VIP Keys Created:** `{total_keys}`
-* 💰 **Estimated Revenue Earned:** `₹{est_revenue}`
-* 💾 **Database Status:** `SQLite Connected (Active)`
-"""
-    return key_msg, stats_md
+    return f"🎉 **PAYMENT SUCCESSFUL!**\n\nYour account **@{username}** is now upgraded to **VIP ACCESS** until `{expiry}`. Enjoy Unlimited Scripts!"
 
-# --- GRADIO INTERFACE (FULL SAAS LOOK) ---
-with gr.Blocks(title="Viral AI Script Generator Pro SaaS v3.0") as demo:
+# --- DASHBOARD & HISTORY ---
+def load_user_dashboard(username):
+    if not username or username == "guest":
+        return "⚠️ Please **Login** to view your personal dashboard & saved scripts history."
     
-    # Custom CSS / Floating Support Widget
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT vip_until, scripts_used, created_at FROM users WHERE username = ?", (username.strip().lower(),))
+    u = cursor.fetchone()
+    
+    cursor.execute("SELECT topic, created_at, script FROM history WHERE username = ? ORDER BY id DESC LIMIT 10", (username.strip().lower(),))
+    history_rows = cursor.fetchall()
+    conn.close()
+    
+    status = u[0] if u else "FREE"
+    used = u[1] if u else 0
+    
+    out = f"""### 👤 **User Profile Dashboard**
+* 🆔 **Username:** `@{username}`
+* 💎 **Subscription Status:** `{status}`
+* 📊 **Total Scripts Generated:** `{used}`
+
+---
+### 📜 **Your Saved Script History**
+"""
+    if not history_rows:
+        out += "\n*No saved scripts found yet. Go to Generator tab to create one!*"
+    else:
+        for idx, r in enumerate(history_rows, 1):
+            out += f"\n#### {idx}. 🎯 Topic: **{r[0]}** *(Created: {r[1]})*\n```markdown\n{r[2][:200]}...\n```\n"
+            
+    return out
+
+# --- CUSTOM TAILWIND/DARK-MODE CSS INJECTION ---
+custom_css = """
+body, .gradio-container {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    font-family: 'Inter', sans-serif !important;
+}
+.gr-button-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 14px 0 rgba(168, 85, 247, 0.39) !important;
+}
+.gr-button-secondary {
+    background: #334155 !important;
+    border: none !important;
+}
+.gr-textbox input, .gr-textbox textarea {
+    background-color: #1e293b !important;
+    border: 1px solid #475569 !important;
+    color: white !important;
+    border-radius: 8px !important;
+}
+"""
+
+# --- GRADIO INTERFACE (FULL SAAS APP) ---
+with gr.Blocks(css=custom_css, title="Viral Script AI Pro - Full SaaS") as demo:
+    
+    active_user = gr.State(value="guest")
+    
     gr.HTML(f"""
-    <div style="background: linear-gradient(90deg, #1E1E2F 0%, #2D2B55 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 15px;">
-        <h1 style="margin: 0; font-size: 28px;">⚡ Viral AI Script Generator Pro</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Create Viral Short Video Scripts, Hooks & CTAs in 5 Seconds</p>
+    <div style="background: linear-gradient(90deg, #1e1b4b 0%, #311b92 100%); padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #4338ca;">
+        <h1 style="color: #ffffff; margin:0; font-size: 30px; font-weight: 800;">⚡ VIRAL SCRIPT AI PRO</h1>
+        <p style="color: #cbd5e1; margin-top: 5px;">Complete SaaS Platform with Auth, Instant Payment & Saved History</p>
     </div>
     """)
     
-    with gr.Tab("🏠 Home & Pricing"):
-        gr.Markdown("""
-        ### 🚀 **Welcome to Viral AI Script Generator Pro**
-        *The #1 AI Tool for Reels, Shorts & TikTok Creators.*
-        
-        ---
-        
-        #### ✨ **Why Choose Us?**
-        * 🎯 **10x Retention Hooks:** Never lose viewers in the first 3 seconds.
-        * ⚡ **Full Hinglish Support:** Optimized for Indian social media audience.
-        * 📥 **Instant 1-Click Download:** Get your script ready in .txt format.
-        * 🛡️ **30-Day VIP Pass:** Unlimited generations without limit.
-        
-        ---
-        
-        #### 💳 **Subscription Plans**
-        | Plan | Price | Scripts Limit | Access |
-        | :--- | :--- | :--- | :--- |
-        | **Free Trial** | ₹0 | 2 Scripts Total | Instant Access |
-        | **VIP Monthly Pass** | **₹299 / Month** | **UNLIMITED** | **30 Days Access + Support** |
-        
-        👉 **[Click Here to Purchase VIP Pass via WhatsApp](https://wa.me/917980890889?text=Bro%20mujhe%20Viral%20Script%20AI%20ka%20subscription%20chahiye)**
-        
-        ---
-        
-        #### ❓ **Frequently Asked Questions (FAQ)**
-        * **Q: VIP Key kitne time tak chalega?**
-          * *Ans:* Pure 30 din tak valid rahega.
-        * **Q: Kya main har topic par script bana sakta hu?**
-          * *Ans:* Haan! Fitness, Gaming, Tech, Boxing, MMA, Finance sab par kaam karta hai.
-        """)
-        
+    user_status_bar = gr.Markdown("🟢 Status: **Browsing as Guest** (Login to save scripts & unlock VIP)")
+    
+    with gr.Tab("🔐 Account Login / Sign Up"):
+        with gr.Row():
+            with gr.Column():
+                gr.Markdown("### 📝 Register New Account")
+                reg_user = gr.Textbox(label="Choose Username")
+                reg_pass = gr.Textbox(label="Choose Password", type="password")
+                reg_btn = gr.Button("Create Account", variant="primary")
+                reg_output = gr.Markdown()
+                reg_btn.click(fn=register_user, inputs=[reg_user, reg_pass], outputs=reg_output)
+                
+            with gr.Column():
+                gr.Markdown("### 🔑 Login to Existing Account")
+                log_user = gr.Textbox(label="Username")
+                log_pass = gr.Textbox(label="Password", type="password")
+                log_btn = gr.Button("Login Now", variant="primary")
+                log_output = gr.Markdown()
+                
+                def handle_login(u, p):
+                    msg, username = login_user(u, p)
+                    if username:
+                        status_text = f"🟢 Logged in as: **@{username}**"
+                        return msg, username, status_text
+                    return msg, "guest", "🟢 Status: **Browsing as Guest**"
+
+                log_btn.click(
+                    fn=handle_login, 
+                    inputs=[log_user, log_pass], 
+                    outputs=[log_output, active_user, user_status_bar]
+                )
+
     with gr.Tab("🎬 Script Generator"):
         with gr.Row():
-            topic_input = gr.Textbox(
-                label="🎯 Enter Video Topic", 
-                placeholder="e.g. Fitness Tips, Boxing Basics, YouTube Growth...",
-                scale=2
-            )
-            key_input = gr.Textbox(
-                label="🔑 VIP Key / Pass (Optional)", 
-                placeholder="Enter VIP Key for Unlimited Access...", 
-                type="password",
-                scale=1
-            )
+            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Fitness Tips, Boxing Basics, Tech Reviews...", scale=2)
+            key_input = gr.Textbox(label="🔑 VIP Key / Admin Pass (Optional)", type="password", scale=1)
         
-        submit_btn = gr.Button("🔥 Generate Viral Script Now", variant="primary")
+        submit_btn = gr.Button("🔥 Generate Viral Script", variant="primary")
         
         with gr.Row():
-            output_text = gr.Markdown(label="Generated Script Output")
+            output_text = gr.Markdown(label="Output")
             file_output = gr.File(label="📥 Download Script (.txt)")
         
         submit_btn.click(
-            fn=generate_script_and_file,
-            inputs=[topic_input, key_input],
+            fn=generate_script_authenticated,
+            inputs=[active_user, topic_input, key_input],
             outputs=[output_text, file_output]
         )
 
-    with gr.Tab("🕒 Recent History"):
-        history_btn = gr.Button("🔄 Refresh Database History")
-        history_output = gr.Markdown()
-        history_btn.click(fn=get_recent_history, outputs=history_output)
+    with gr.Tab("💳 Instant UPI Payment (Auto Unlock)"):
+        gr.Markdown(f"""
+        ### ⚡ Instant Subscription Activation (₹299 / Month)
+        1. Scan QR or pay ₹299 to UPI ID: `{MY_UPI_ID}`
+        2. Enter the **12-Digit UTR / Transaction ID** below for instant activation!
+        """)
+        
+        utr_input = gr.Textbox(label="Enter 12-Digit UPI UTR / Transaction Number", placeholder="e.g. 425619082341")
+        pay_btn = gr.Button("🚀 Verify Payment & Unlock VIP", variant="primary")
+        pay_output = gr.Markdown()
+        
+        pay_btn.click(fn=submit_payment_utr, inputs=[active_user, utr_input], outputs=pay_output)
 
-    with gr.Tab("🔑 Admin & Analytics Panel"):
-        gr.Markdown("### 🛠️ Owner Admin Control Center")
-        admin_pass_input = gr.Textbox(label="Enter Admin Pass", type="password", placeholder="AZAM2026")
-        gen_btn = gr.Button("Generate 1-Month Key & View Live Analytics", variant="secondary")
-        
-        key_output = gr.Markdown()
-        stats_output = gr.Markdown()
-        
-        gen_btn.click(
-            fn=admin_generate_key_and_stats,
-            inputs=[admin_pass_input],
-            outputs=[key_output, stats_output]
-        )
+    with gr.Tab("📊 User Dashboard & History"):
+        dash_refresh_btn = gr.Button("🔄 Load My Dashboard & History")
+        dash_output = gr.Markdown()
+        dash_refresh_btn.click(fn=load_user_dashboard, inputs=[active_user], outputs=dash_output)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
