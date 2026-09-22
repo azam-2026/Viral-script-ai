@@ -12,19 +12,17 @@ import gradio as gr
 ssl_context = ssl._create_unverified_context()
 
 # ================= CONFIGURATION =================
-MY_WHATSAPP_NUMBER = "917980890889"  # Tera WhatsApp Number
-MY_UPI_ID = "7980890889@upi"          # Tera UPI ID for Instant Auto Payment
-ADMIN_SECRET_KEY = "AZAM2026"         # Tera Admin Pass
-KEY_SALT = "AZAM_SECRET_SALT_999"    # Secret Salt
+MY_WHATSAPP_NUMBER = "917980890889"  # WhatsApp Number
+MY_UPI_ID = "7980890889@upi"          # UPI ID for Payment
+ADMIN_SECRET_KEY = "AZAM2026"         # Admin Secret Key
 DB_FILE = "app_database.db"          # SQLite Database File
 
 PAYMENT_LINK = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text=Bro%20mujhe%20Viral%20Script%20AI%20ka%20subscription%20chahiye"
 
-# --- 1. SQLITE DATABASE INITIALIZATION (Zero Cost Database) ---
+# --- 1. SQLITE DATABASE INITIALIZATION ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # Users Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
@@ -34,7 +32,6 @@ def init_db():
             created_at TEXT
         )
     ''')
-    # History Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +41,6 @@ def init_db():
             created_at TEXT
         )
     ''')
-    # Payments Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS payments (
             utr TEXT PRIMARY KEY,
@@ -58,48 +54,52 @@ def init_db():
 
 init_db()
 
-# --- HELPER FUNCTIONS FOR AUTH & SECURITY ---
+# --- AUTH & SECURITY FUNCTIONS ---
 def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def register_user(username, password):
     if not username or not password:
-        return "⚠️ Please enter both username and password!"
+        return "⚠️ Kripya username aur password dono enter karein!"
     
+    u_clean = username.strip().lower()
+    if len(u_clean) < 3:
+        return "⚠️ Username kam se kam 3 characters ka hona chahiye!"
+        
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT username FROM users WHERE username = ?", (username.strip().lower(),))
+    cursor.execute("SELECT username FROM users WHERE username = ?", (u_clean,))
     if cursor.fetchone():
         conn.close()
-        return "❌ Username already exists! Choose another or login."
+        return "❌ Ye username pehle se exist karta hai! Dusra try karein ya Login karein."
     
     hashed = hash_pass(password)
     today = datetime.date.today().strftime("%Y-%m-%d")
     cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)", 
-                   (username.strip().lower(), hashed, "FREE", 0, today))
+                   (u_clean, hashed, "FREE", 0, today))
     conn.commit()
     conn.close()
-    return "✅ Account created successfully! Now go to Login tab."
+    return "✅ Account Safaltapoorvak Ban Gaya! Ab Login tab me jaakar login karein."
 
 def login_user(username, password):
     if not username or not password:
-        return "⚠️ Please enter username and password!", None
+        return "⚠️ Username aur Password enter karein!", "guest"
     
+    u_clean = username.strip().lower()
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     hashed = hash_pass(password)
     cursor.execute("SELECT username, vip_until, scripts_used FROM users WHERE username = ? AND password = ?", 
-                   (username.strip().lower(), hashed))
+                   (u_clean, hashed))
     user = cursor.fetchone()
     conn.close()
     
     if user:
-        status_str = f"Logged in as: **{user[0]}** | Tier: **{user[1]}** | Free Scripts Used: **{user[2]}/2**"
-        return f"✅ **Login Successful! Welcome {user[0]}**", user[0]
+        return f"✅ **Login Successful! Welcome @{user[0]}**", user[0]
     else:
-        return "❌ Invalid Username or Password!", None
+        return "❌ Galat Username ya Password!", "guest"
 
-# --- DYNAMIC AI / FALLBACK ENGINE ---
+# --- AI & FALLBACK SCRIPT GENERATOR ---
 HOOKS = [
     "Ruko! Agar tum {topic} me 10x growth chahte ho, toh ye 3 secrets miss mat karna!",
     "Kya tum bhi {topic} me ye sabse badi galti kar rahe ho? Dhyan se suno!",
@@ -148,9 +148,7 @@ def fallback_local_script(topic):
 
 #### 💡 **3. MAIN VALUE CONTENT (10-45 Sec)**
 * 📌 {tips[0].format(topic=topic_cap)}
-
 * 📌 {tips[1].format(topic=topic_cap)}
-
 * 📌 {tips[2].format(topic=topic_cap)}
 
 ---
@@ -189,11 +187,10 @@ def fetch_ai_script(topic):
         pass
     return None
 
-# --- CORE SCRIPT GENERATION WITH AUTH CHECK ---
 def generate_script_authenticated(username_state, topic, vip_key):
     try:
         if not topic or not topic.strip():
-            return "⚠️ **Please enter a video topic first!**", None
+            return "⚠️ **Pehle video ka topic enter karein!**", None
         
         target_user = username_state.strip().lower() if username_state else "guest"
         
@@ -213,19 +210,19 @@ def generate_script_authenticated(username_state, topic, vip_key):
                 
                 if not is_vip and scripts_used >= 2 and vip_key.strip() != ADMIN_SECRET_KEY:
                     conn.close()
-                    return f"""### 🔒 **FREE TRIAL EXHAUSTED FOR (@{target_user})**
+                    return f"""### 🔒 **FREE LIMIT EXHAUSTED FOR (@{target_user})**
 
-Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment Tab** me jaakar ₹299 pay karke UTR enter karein ya VIP Key use karein!
+Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment Tab** me jaakar ₹299 pay karke 12-Digit UTR enter karein ya VIP Key use karein!
 
-👉 **[OR CLICK HERE TO BUY ON WHATSAPP]({PAYMENT_LINK})**
+👉 **[WHATSAPP PAR BUY KARNE KE LIYE YAHAN CLICK KAREIN]({PAYMENT_LINK})**
 """, None
 
-        # Generate Script
+        # Script Generation
         script_output = fetch_ai_script(topic)
         if not script_output:
             script_output = fallback_local_script(topic)
 
-        # Update Database
+        # Database Update
         if target_user != "guest":
             cursor.execute("UPDATE users SET scripts_used = scripts_used + 1 WHERE username = ?", (target_user,))
             cursor.execute("INSERT INTO history (username, topic, script, created_at) VALUES (?, ?, ?, ?)",
@@ -233,7 +230,7 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
             conn.commit()
         conn.close()
 
-        # Download File
+        # File Creation
         filename = f"Script_{topic.replace(' ', '_')}.txt"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(script_output)
@@ -243,30 +240,40 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
     except Exception as e:
         return f"❌ Error: {str(e)}", None
 
-# --- AUTOMATED PAYMENT VERIFICATION SYSTEM ---
+# --- STRICT UTR VERIFICATION SYSTEM (FIXED BUG) ---
 def submit_payment_utr(username, utr):
     if not username or username == "guest":
-        return "❌ Please Login first before submitting payment!"
-    if not utr or len(utr.strip()) < 6:
-        return "⚠️ Please enter a valid 12-digit UPI UTR / Transaction ID!"
+        return "❌ **Pehle Login Karo!** Payment verify karne ke liye pehle account login hona zaroori hai."
+    
+    utr_clean = utr.strip()
+    
+    # STRICT VALIDATION: Exactly 12 digits and ONLY NUMBERS
+    if not utr_clean.isdigit() or len(utr_clean) != 12:
+        return "❌ **INVALID UTR / TRANSACTION ID!**\n\nKripya sahi **12-digit numeric UTR** number enter karein (Jaise: `425619082341`). Fake text, letters ya galat length accept nahi hogi!"
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Auto approve for instant demo or record for admin approval
+    # Check duplicate UTR
+    cursor.execute("SELECT utr FROM payments WHERE utr = ?", (utr_clean,))
+    if cursor.fetchone():
+        conn.close()
+        return "⚠️ **Ye UTR pehle se process ho chuka hai!** Kripya apna new Transaction ID daalein."
+    
+    # Valid UTR - Grant 30 Days VIP
     expiry = (datetime.date.today() + datetime.timedelta(days=30)).strftime("%Y-%m-%d")
     cursor.execute("UPDATE users SET vip_until = ? WHERE username = ?", (expiry, username.strip().lower()))
-    cursor.execute("INSERT OR REPLACE INTO payments VALUES (?, ?, ?, ?)", 
-                   (utr.strip(), username.strip().lower(), "APPROVED", datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    cursor.execute("INSERT INTO payments VALUES (?, ?, ?, ?)", 
+                   (utr_clean, username.strip().lower(), "APPROVED", datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
     conn.close()
     
-    return f"🎉 **PAYMENT SUCCESSFUL!**\n\nYour account **@{username}** is now upgraded to **VIP ACCESS** until `{expiry}`. Enjoy Unlimited Scripts!"
+    return f"🎉 **PAYMENT SUCCESSFUL!**\n\nUTR `{utr_clean}` successfully verify ho gaya hai! Account **@{username}** ko **{expiry}** tak VIP Unlimited Access mil gaya hai."
 
-# --- DASHBOARD & HISTORY ---
+# --- DASHBOARD LOAD ---
 def load_user_dashboard(username):
     if not username or username == "guest":
-        return "⚠️ Please **Login** to view your personal dashboard & saved scripts history."
+        return "⚠️ Dashboard dekhne ke liye pehle **Login** karein."
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -280,73 +287,99 @@ def load_user_dashboard(username):
     status = u[0] if u else "FREE"
     used = u[1] if u else 0
     
-    out = f"""### 👤 **User Profile Dashboard**
-* 🆔 **Username:** `@{username}`
-* 💎 **Subscription Status:** `{status}`
-* 📊 **Total Scripts Generated:** `{used}`
-
----
-### 📜 **Your Saved Script History**
-"""
+    out = f"### 👤 **User Profile Dashboard**\n"
+    out += f"* 🆔 **Username:** `@{username}`\n"
+    out += f"* 💎 **Subscription Status:** `{status}`\n"
+    out += f"* 📊 **Total Scripts Generated:** `{used}`\n\n"
+    out += f"--- \n### 📜 **Saved Scripts History**\n"
+    
     if not history_rows:
-        out += "\n*No saved scripts found yet. Go to Generator tab to create one!*"
+        out += "\n*Abhi tak koi saved script nahi hai. Generator tab me jaakar script banayein!*"
     else:
         for idx, r in enumerate(history_rows, 1):
-            out += f"\n#### {idx}. 🎯 Topic: **{r[0]}** *(Created: {r[1]})*\n```markdown\n{r[2][:200]}...\n```\n"
+            out += f"\n#### {idx}. 🎯 Topic: **{r[0]}** *(Date: {r[1]})*\n```markdown\n{r[2][:250]}...\n```\n"
             
     return out
 
-# --- CUSTOM TAILWIND/DARK-MODE CSS INJECTION ---
+# --- HIGH CONTRAST DARK MODE CSS (MOBILE FRIENDLY) ---
 custom_css = """
+/* Force High Contrast Text & Colors */
 body, .gradio-container {
-    background-color: #0f172a !important;
-    color: #f8fafc !important;
+    background-color: #0b0f19 !important;
+    color: #ffffff !important;
     font-family: 'Inter', sans-serif !important;
 }
-.gr-button-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
-    border: none !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 14px 0 rgba(168, 85, 247, 0.39) !important;
+
+/* Fix Unreadable Text Bug */
+p, span, label, h1, h2, h3, h4, h5, h6, .markdown-text, .gr-text-input, code {
+    color: #f1f5f9 !important;
 }
-.gr-button-secondary {
-    background: #334155 !important;
-    border: none !important;
+
+/* Card Boxes */
+div[class*="block"], .gr-form, .gr-box {
+    background-color: #161e2e !important;
+    border: 1px solid #374151 !important;
+    border-radius: 10px !important;
 }
-.gr-textbox input, .gr-textbox textarea {
+
+/* Input Fields */
+input, textarea, select {
     background-color: #1e293b !important;
+    color: #ffffff !important;
     border: 1px solid #475569 !important;
-    color: white !important;
+    border-radius: 6px !important;
+    font-size: 15px !important;
+}
+
+/* Primary Action Buttons */
+.gr-button-primary {
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border: none !important;
     border-radius: 8px !important;
+}
+
+/* Active Tabs */
+button[role="tab"] {
+    color: #9ca3af !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+}
+
+button[role="tab"][aria-selected="true"] {
+    color: #ffffff !important;
+    border-bottom: 3px solid #8b5cf6 !important;
+    background-color: #1e293b !important;
 }
 """
 
-# --- GRADIO INTERFACE (FULL SAAS APP) ---
-with gr.Blocks(css=custom_css, title="Viral Script AI Pro - Full SaaS") as demo:
+# --- GRADIO INTERFACE ---
+with gr.Blocks(css=custom_css, title="Viral Script AI Pro") as demo:
     
     active_user = gr.State(value="guest")
     
-    gr.HTML(f"""
-    <div style="background: linear-gradient(90deg, #1e1b4b 0%, #311b92 100%); padding: 25px; border-radius: 12px; text-align: center; border: 1px solid #4338ca;">
-        <h1 style="color: #ffffff; margin:0; font-size: 30px; font-weight: 800;">⚡ VIRAL SCRIPT AI PRO</h1>
-        <p style="color: #cbd5e1; margin-top: 5px;">Complete SaaS Platform with Auth, Instant Payment & Saved History</p>
+    gr.HTML("""
+    <div style="background: linear-gradient(90deg, #1e1b4b 0%, #311b92 100%); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #6366f1; margin-bottom: 15px;">
+        <h1 style="color: #ffffff; margin:0; font-size: 26px; font-weight: 800;">⚡ VIRAL SCRIPT AI PRO</h1>
+        <p style="color: #e2e8f0; margin-top: 5px; font-size: 14px;">Instant High Retention Scripts & Automated SaaS Platform</p>
     </div>
     """)
     
-    user_status_bar = gr.Markdown("🟢 Status: **Browsing as Guest** (Login to save scripts & unlock VIP)")
+    user_status_bar = gr.Markdown("🟢 **Status:** Guest Mode (Login to save history & get VIP)")
     
-    with gr.Tab("🔐 Account Login / Sign Up"):
+    with gr.Tab("🔐 Account Login / Register"):
         with gr.Row():
             with gr.Column():
-                gr.Markdown("### 📝 Register New Account")
-                reg_user = gr.Textbox(label="Choose Username")
-                reg_pass = gr.Textbox(label="Choose Password", type="password")
+                gr.Markdown("### 📝 Register Account")
+                reg_user = gr.Textbox(label="Enter Username")
+                reg_pass = gr.Textbox(label="Enter Password", type="password")
                 reg_btn = gr.Button("Create Account", variant="primary")
                 reg_output = gr.Markdown()
                 reg_btn.click(fn=register_user, inputs=[reg_user, reg_pass], outputs=reg_output)
                 
             with gr.Column():
-                gr.Markdown("### 🔑 Login to Existing Account")
+                gr.Markdown("### 🔑 Login")
                 log_user = gr.Textbox(label="Username")
                 log_pass = gr.Textbox(label="Password", type="password")
                 log_btn = gr.Button("Login Now", variant="primary")
@@ -354,10 +387,10 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro - Full SaaS") as demo:
                 
                 def handle_login(u, p):
                     msg, username = login_user(u, p)
-                    if username:
-                        status_text = f"🟢 Logged in as: **@{username}**"
+                    if username != "guest":
+                        status_text = f"🟢 **Logged in as:** @{username}"
                         return msg, username, status_text
-                    return msg, "guest", "🟢 Status: **Browsing as Guest**"
+                    return msg, "guest", "🟢 **Status:** Guest Mode"
 
                 log_btn.click(
                     fn=handle_login, 
@@ -367,14 +400,13 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro - Full SaaS") as demo:
 
     with gr.Tab("🎬 Script Generator"):
         with gr.Row():
-            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Fitness Tips, Boxing Basics, Tech Reviews...", scale=2)
+            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Boxing Workout, Gym Motivation, Mobile Editing...", scale=2)
             key_input = gr.Textbox(label="🔑 VIP Key / Admin Pass (Optional)", type="password", scale=1)
         
         submit_btn = gr.Button("🔥 Generate Viral Script", variant="primary")
         
-        with gr.Row():
-            output_text = gr.Markdown(label="Output")
-            file_output = gr.File(label="📥 Download Script (.txt)")
+        output_text = gr.Markdown(label="Generated Script Output")
+        file_output = gr.File(label="📥 Download Script Text File")
         
         submit_btn.click(
             fn=generate_script_authenticated,
@@ -382,21 +414,21 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro - Full SaaS") as demo:
             outputs=[output_text, file_output]
         )
 
-    with gr.Tab("💳 Instant UPI Payment (Auto Unlock)"):
+    with gr.Tab("💳 Instant UPI Payment"):
         gr.Markdown(f"""
-        ### ⚡ Instant Subscription Activation (₹299 / Month)
-        1. Scan QR or pay ₹299 to UPI ID: `{MY_UPI_ID}`
-        2. Enter the **12-Digit UTR / Transaction ID** below for instant activation!
+        ### ⚡ Activate VIP Subscription (₹299 / Month)
+        1. Pay ₹299 to UPI ID: `{MY_UPI_ID}`
+        2. Enter your **12-Digit Numeric UTR / Transaction ID** below.
         """)
         
-        utr_input = gr.Textbox(label="Enter 12-Digit UPI UTR / Transaction Number", placeholder="e.g. 425619082341")
-        pay_btn = gr.Button("🚀 Verify Payment & Unlock VIP", variant="primary")
+        utr_input = gr.Textbox(label="Enter 12-Digit UPI UTR Number", placeholder="e.g. 425619082341")
+        pay_btn = gr.Button("🚀 Verify UTR & Activate VIP", variant="primary")
         pay_output = gr.Markdown()
         
         pay_btn.click(fn=submit_payment_utr, inputs=[active_user, utr_input], outputs=pay_output)
 
-    with gr.Tab("📊 User Dashboard & History"):
-        dash_refresh_btn = gr.Button("🔄 Load My Dashboard & History")
+    with gr.Tab("📊 User Dashboard"):
+        dash_refresh_btn = gr.Button("🔄 Refresh My Dashboard & History")
         dash_output = gr.Markdown()
         dash_refresh_btn.click(fn=load_user_dashboard, inputs=[active_user], outputs=dash_output)
 
