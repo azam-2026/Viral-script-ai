@@ -2,7 +2,6 @@ import os
 import ssl
 import json
 import random
-import sqlite3
 import hashlib
 import datetime
 import urllib.request
@@ -78,53 +77,83 @@ def login_user(username, password):
     else:
         return "❌ Galat Password! Dubara try karein.", "guest"
 
-# --- HIGH-VARIETY DYNAMIC SCRIPT ENGINE ---
-HOOKS = [
-    "Ruko! Agar tum {topic} me 10x fast results chahte ho, toh ye miss mat karna!",
-    "Kya tum bhi {topic} karte waqt ye sabse badi galti kar rahe ho? Dhyan se dekho!",
-    "99% log {topic} me fail kyu hote hain? Pura secret breakdown yahan hai.",
-    "Stop doing {topic} the old way! Ye viral framework tumhara game badal dega.",
-    "Aaj main tumhe {topic} ka wo sach batane wala hoon jo bade creators chhupate hain!",
-    "Agar tum {topic} me serious ho, toh agle 30 seconds skin mat karna!",
-    "Ye 1 simple habit tumhare {topic} progress ko 3x kar sakti hai!",
-    "Kyu tumhara {topic} routine work nahi kar raha? Real mistake ye hai!"
+# --- DYNAMIC SUB-ANGLES FOR MAXIMUM VARIETY ---
+SUB_ANGLES = [
+    "3 Biggest Mistakes Beginners Make and How to Fix Them",
+    "Secret Daily Routine of Top 1% Performers",
+    "Why 90% People Give Up in the First 30 Days and the Solution",
+    "One Simple Mindset Shift That Changes Everything Instantly",
+    "Stop Doing This Wrong Method Immediately",
+    "Actionable Step-by-Step Blueprint for Rapid Growth",
+    "Unspoken Secrets Nobody Tells You About Progress",
+    "How to Stay Consistent Even When You Have Zero Motivation",
+    "The 5-Minute Daily Habit That Yields 10x Results",
+    "How to Overcome Plateaus and Break Through Your Limits"
 ]
 
-INTROS = [
-    "Most creators {topic} me bina proper strategy ke aate hain. Lekin aaj main tumhe absolute proven roadmap dunga.",
-    "{topic} me mastery paana mushkil nahi hai, bas sahi execution protocol pata hona chahiye.",
-    "Maine {topic} ke top performers ko analyze kiya hai aur ye 3 core elements sabme common mile.",
-    "Agar tumne {topic} ke ye basic fundamentals samajh liye, toh success guaranteed hai."
+HOOK_TEMPLATES = [
+    "Ruko! Agar tum {topic} me rapid progress chahte ho, toh ye 3 secrets miss mat karna!",
+    "Kya tum bhi {topic} karte waqt ye sabse badi galti kar rahe ho? Dhyan se suno!",
+    "99% log {topic} me fail kyu hote hain? Pura real reason aaj exposed hai!",
+    "Stop wasting time on {topic}! Pehle ye simple viral framework samajh lo.",
+    "Ye 1 secret tip tumhare {topic} journey ko complete transform kar degi!",
+    "Agar tum {topic} me serious ho, toh agle 20 seconds bilkul skip mat karna!",
+    "Bade creators {topic} ke baare me ye sach tumse hamesha chhupate hain!",
+    "Kyu tumhara {topic} plan work nahi kar raha? Real mistake yahan hai!"
 ]
 
-TIPS_DATABASE = [
-    "Daily discipline aur tracking system locked rakho—bina skip kiye action lo.",
-    "Top 1% log jo advance techniques use karte hain, unhe apni lifestyle ke according adapt karo.",
-    "Overthinking aur distraction band karke direct core action par focus karo.",
-    "Har Sunday apni weekly mistakes audit karo aur next week immediate correction karo.",
-    "Quality aur Consistency dono ka balance banao taaki rapid growth mile.",
-    "Progressive overload apply karo—har week intensity ko 5% se boost karo.",
-    "Shortcuts dhoondna band karo aur fundamental basics par mastery haasil karo.",
-    "Recovery aur Rest periods ko ignore mat karo, growth rest phase me hi hoti hai."
+INTRO_TEMPLATES = [
+    "Most creators {topic} me bina proper strategy ke start karte hain aur stuck ho jaate hain. Lekin aaj main tumhe direct actionable roadmap dunga.",
+    "{topic} me mastery paana utna hard nahi hai, bas sahi execution protocols aur discipline hona chahiye.",
+    "Maine {topic} ke top performers ko analyze kiya hai aur ye 3 core tactics sabme common mili hain.",
+    "Agar tumne {topic} ke ye basic principles samajh liye, toh consistent growth 100% fix ho jayegi."
 ]
 
-CTAS = [
-    "Agar ye strategy solid lagi toh abhi LIKE aur FOLLOW button dabao!",
-    "Comment me batao tumhara sabse bada struggle kya hai aur dosto ke sath SHARE karo!",
-    "Is reel ko SAVE kar lo taaki baad me bhool na jao, aur daily tips ke liye follow karo!"
+TIPS_CATALOG = {
+    "fitness": [
+        "Progressive Overload Tracking: Har workout session me logbook ya phone note app me weight aur reps note karo. Progressive overload ke bina muscle growth stop ho jaati hai.",
+        "Caloric & Protein Alignment: Sirf mehnat mat karo, apne body weight (in kg) ka 1.5x se 2x grams protein daily intake poora karo taaki muscle tissue repair ho sake.",
+        "Sleep & Recovery Window: Muscle gym me nahi, sote waqt banta hai. Daily 7-8 ghante ki uninterrupted sleep locked rakho taaki cortisol levels drop ho.",
+        "Form & Eccentric Control: Dumbbell/barbell ko fast drop karne ke bajaye 2-3 second slow negative (eccentric phase) me control karo for maximum hypertrophy.",
+        "Hydration & Electrolyte Balance: Workout ke waqt minimum 1.5 liter paani aur salt/electrolytes consume karo taaki cramps na aayein aur peak muscle pump mile.",
+        "Warm-up & Joint Longevity: Static stretching workout ke pehle mat karo, hamesha dynamic mobility drills karo taaki injuries avoid hon aur longevity bane.",
+        "Consistency Over Intensity: Hafte me 1 din 3 ghante gym karne se behtar hai daily 45 minutes focused session lagao with 100% discipline.",
+        "Mind-Muscle Connection: Weight uthate waqt target muscle group ko consciously squeeze karo, ego lifting chhod do."
+    ],
+    "general": [
+        "Execution System: Daily 3 non-negotiable tasks paper par likho aur unhe bina kisi distraction ke pehle finish karo.",
+        "Audit Mistakes Weekly: Har Sunday ko baith kar dekho ki is hafte kahan time waste hua aur agle hafte use 100% eliminate karo.",
+        "Skill Stacking: Apne main skill ke sath 1 complementary skill (jaise video editing ya copy-writing) seekho taaki market value 10x ho jaye.",
+        "Input vs Output Ratio: Learning me 20% time do aur execution me 80% time spend karo—action hi real result deta hai.",
+        "Environment Design: Apne phone notifications turn off karo aur distraction-free zone banao taaki deep focus state achieve ho sake."
+    ]
+}
+
+CTA_TEMPLATES = [
+    "Agar ye actionable strategy solid lagi toh abhi LIKE aur FOLLOW button dabao!",
+    "Comment me batao tumhara sabse bada doubt kya hai aur dosto ke sath SHARE karo!",
+    "Is reel ko SAVE kar lo taaki baad me bhool na jao, aur daily content ke liye follow karo!"
 ]
 
 def fallback_local_script(topic):
+    topic_clean = topic.strip().lower()
     topic_cap = topic.strip().capitalize()
-    hook = random.choice(HOOKS).format(topic=topic_cap)
-    intro = random.choice(INTROS).format(topic=topic_cap)
     
-    # Pick 3 completely random unique tips every time
-    selected_tips = random.sample(TIPS_DATABASE, 3)
-    cta = random.choice(CTAS)
-    rnd_num = random.randint(1000, 9999)
+    # Pick sub angle
+    angle = random.choice(SUB_ANGLES)
+    hook = random.choice(HOOK_TEMPLATES).format(topic=topic_cap)
+    intro = random.choice(INTRO_TEMPLATES).format(topic=topic_cap)
     
-    return f"""### 🎬 VIRAL SCRIPT FOR: {topic_cap} (Variant #{rnd_num})
+    # Check if category-specific tips exist
+    category_key = "fitness" if any(w in topic_clean for w in ["fitness", "gym", "workout", "exercise", "fat loss", "muscle", "diet", "bodybuilding"]) else "general"
+    
+    tips_pool = TIPS_CATALOG[category_key]
+    selected_tips = random.sample(tips_pool, min(3, len(tips_pool)))
+    cta = random.choice(CTA_TEMPLATES)
+    rnd_id = random.randint(10000, 99999)
+    
+    return f"""### 🎬 VIRAL SCRIPT FOR: {topic_cap}
+**Angle:** {angle} *(Variant #{rnd_id})*
 
 ---
 
@@ -139,9 +168,9 @@ def fallback_local_script(topic):
 ---
 
 #### 💡 3. MAIN VALUE CONTENT (10-45 Sec)
-* 📌 **Tip 1:** {selected_tips[0]}
-* 📌 **Tip 2:** {selected_tips[1]}
-* 📌 **Tip 3:** {selected_tips[2]}
+* 📌 **Action Step 1:** {selected_tips[0]}
+* 📌 **Action Step 2:** {selected_tips[1]}
+* 📌 **Action Step 3:** {selected_tips[2]}
 
 ---
 
@@ -151,32 +180,39 @@ def fallback_local_script(topic):
 ---
 
 #### 🏷️ 5. VIRAL HASHTAGS
-`#{topic_cap.replace(' ', '')}` `#{topic_cap.replace(' ', '')}Tips` `#ViralReels` `#TrendingNow` `#{rnd_num}`
+`#{topic_cap.replace(' ', '')}` `#{topic_cap.replace(' ', '')}Tips` `#ViralReels` `#TrendingNow` `#{rnd_id}`
 """
 
 def fetch_ai_script(topic):
+    sub_angle = random.choice(SUB_ANGLES)
+    seed_val = random.randint(100000, 999999)
+    
+    prompt = (
+        f"Create a fresh, unique, high-retention viral short video script in Hinglish about '{topic}'. "
+        f"Specific Sub-Angle Focus: '{sub_angle}'. "
+        f"Do NOT use generic advice. Give concrete, practical, deep actionable tips. "
+        f"Format strictly in markdown with clear headings:\n"
+        f"1. Attention Hook (0-3s)\n"
+        f"2. Retention Intro (3-10s)\n"
+        f"3. Main Value Content (10-45s) - write 3 detailed bullet points with concrete facts/steps.\n"
+        f"4. Call To Action (CTA)\n"
+        f"5. Viral Hashtags\n"
+        f"Seed ID: {seed_val}"
+    )
+    
+    encoded_prompt = urllib.parse.quote(prompt)
     models = ["openai", "qwen-coder", "mistral"]
-    for model_name in models:
+    
+    for m in models:
         try:
-            seed = random.randint(100000, 999999)
-            prompt_text = (
-                f"Write a completely UNIQUE, fresh, high-retention viral short video script in Hinglish about '{topic}'. "
-                f"Make it radically different from previous versions (Variation Seed: {seed}). "
-                f"Strictly format in markdown:\n"
-                f"1. Attention Hook (0-3s)\n"
-                f"2. Retention Intro (3-10s)\n"
-                f"3. Main Value Content (10-45s) - write 3 fresh distinct practical tips on separate bullet lines.\n"
-                f"4. Call To Action (CTA)\n"
-                f"5. Viral Hashtags"
-            )
-            encoded_prompt = urllib.parse.quote(prompt_text)
-            url = f"https://text.pollinations.ai/{encoded_prompt}?model={model_name}&seed={seed}&cache=false"
-            
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-            with urllib.request.urlopen(req, context=ssl_context, timeout=8) as response:
-                result = response.read().decode('utf-8')
-                if result and len(result.strip()) > 80 and ("Hook" in result or "ATTENTION" in result or "Tip" in result):
-                    return result
+            url = f"https://text.pollinations.ai/{encoded_prompt}?model={m}&seed={seed_val}&temperature=0.9&cache=false"
+            req = urllib.request.Request(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+            with urllib.request.urlopen(req, context=ssl_context, timeout=9) as response:
+                res_text = response.read().decode('utf-8')
+                if res_text and len(res_text.strip()) > 100 and ("Hook" in res_text or "1." in res_text or "ATTENTION" in res_text):
+                    return res_text
         except Exception:
             continue
     return None
@@ -208,14 +244,14 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
 👉 **[WHATSAPP PAR BUY KARNE KE LIYE YAHAN CLICK KAREIN]({PAYMENT_LINK})**
 """, None
 
-        # Try Live Multi-Model AI AI Generation first
+        # Try Live AI Generation
         script_output = fetch_ai_script(topic)
         
-        # If AI offline, use multi-combination dynamic fallback engine
+        # If AI offline, use high-variety fallback matrix
         if not script_output:
             script_output = fallback_local_script(topic)
 
-        # Update JSON DB
+        # Update Database
         if target_user != "guest" and target_user in db["users"]:
             db["users"][target_user]["scripts_used"] += 1
             db["history"].append({
@@ -226,8 +262,8 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
             })
             save_db(db)
 
-        # File Creation
-        filename = f"Script_{topic.replace(' ', '_')}_{random.randint(100, 999)}.txt"
+        # Create File
+        filename = f"Script_{topic.replace(' ', '_')}_{random.randint(1000, 9999)}.txt"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(script_output)
 
@@ -290,7 +326,7 @@ def load_user_dashboard(username):
             
     return out
 
-# --- HIGH CONTRAST CSS & UI FIX ---
+# --- HIGH CONTRAST STYLING ---
 custom_css = """
 body, .gradio-container, .main {
     background-color: #090d16 !important;
@@ -329,7 +365,6 @@ input, textarea, select {
     border: 1px solid #4b5563 !important;
 }
 
-/* Download File Box Visibility Fix */
 .gr-file, div[data-testid="file-upload"] {
     background-color: #1f2937 !important;
     border: 1px solid #3b82f6 !important;
@@ -393,7 +428,7 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro") as demo:
 
     with gr.Tab("🎬 Script Generator"):
         with gr.Row():
-            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Boxing Workout, Gym Motivation...", scale=2)
+            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Fitness, Gym Motivation, Fat Loss...", scale=2)
             key_input = gr.Textbox(label="🔑 VIP Key / Admin Pass (Optional)", type="password", scale=1)
         
         submit_btn = gr.Button("🔥 Generate Viral Script", variant="primary")
