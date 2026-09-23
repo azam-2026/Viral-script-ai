@@ -19,7 +19,7 @@ JSON_DB_FILE = "users_data.json"
 
 PAYMENT_LINK = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text=Bro%20mujhe%20Viral%20Script%20AI%20ka%20subscription%20chahiye"
 
-# --- PERSISTENT JSON DATABASE ENGINE (Render Disk Reset Protection) ---
+# --- PERSISTENT JSON DATABASE ENGINE ---
 def load_db():
     if not os.path.exists(JSON_DB_FILE):
         default_data = {"users": {}, "history": [], "payments": {}}
@@ -78,40 +78,53 @@ def login_user(username, password):
     else:
         return "❌ Galat Password! Dubara try karein.", "guest"
 
-# --- SCRIPT GENERATION ENGINE ---
+# --- HIGH-VARIETY DYNAMIC SCRIPT ENGINE ---
 HOOKS = [
-    "Ruko! Agar tum {topic} me 10x growth chahte ho, toh ye 3 secrets miss mat karna!",
-    "Kya tum bhi {topic} me ye sabse badi galti kar rahe ho? Dhyan se suno!",
-    "99% log {topic} ke baare me ye secret formula nahi jaante! Abhi dekho."
+    "Ruko! Agar tum {topic} me 10x fast results chahte ho, toh ye miss mat karna!",
+    "Kya tum bhi {topic} karte waqt ye sabse badi galti kar rahe ho? Dhyan se dekho!",
+    "99% log {topic} me fail kyu hote hain? Pura secret breakdown yahan hai.",
+    "Stop doing {topic} the old way! Ye viral framework tumhara game badal dega.",
+    "Aaj main tumhe {topic} ka wo sach batane wala hoon jo bade creators chhupate hain!",
+    "Agar tum {topic} me serious ho, toh agle 30 seconds skin mat karna!",
+    "Ye 1 simple habit tumhare {topic} progress ko 3x kar sakti hai!",
+    "Kyu tumhara {topic} routine work nahi kar raha? Real mistake ye hai!"
 ]
 
 INTROS = [
-    "Most creators {topic} me bina strategy ke aate hain aur fail ho jaate hain. Lekin aaj main tumhe proven roadmap dunga.",
-    "{topic} me success paana utna mushkil nahi hai jitna log sochte hain, bas sahi execution pata honi chahiye."
+    "Most creators {topic} me bina proper strategy ke aate hain. Lekin aaj main tumhe absolute proven roadmap dunga.",
+    "{topic} me mastery paana mushkil nahi hai, bas sahi execution protocol pata hona chahiye.",
+    "Maine {topic} ke top performers ko analyze kiya hai aur ye 3 core elements sabme common mile.",
+    "Agar tumne {topic} ke ye basic fundamentals samajh liye, toh success guaranteed hai."
 ]
 
-TIPS_SETS = [
-    [
-        "Tip 1: Always focus on strong execution and daily discipline.",
-        "Tip 2: Analyze top performers in {topic} and reverse-engineer their success.",
-        "Tip 3: Never stop learning—upgrade your techniques every single week."
-    ]
+TIPS_DATABASE = [
+    "Daily discipline aur tracking system locked rakho—bina skip kiye action lo.",
+    "Top 1% log jo advance techniques use karte hain, unhe apni lifestyle ke according adapt karo.",
+    "Overthinking aur distraction band karke direct core action par focus karo.",
+    "Har Sunday apni weekly mistakes audit karo aur next week immediate correction karo.",
+    "Quality aur Consistency dono ka balance banao taaki rapid growth mile.",
+    "Progressive overload apply karo—har week intensity ko 5% se boost karo.",
+    "Shortcuts dhoondna band karo aur fundamental basics par mastery haasil karo.",
+    "Recovery aur Rest periods ko ignore mat karo, growth rest phase me hi hoti hai."
 ]
 
 CTAS = [
-    "Agar ye content helpful laga toh abhi LIKE aur FOLLOW kar lo!",
-    "Comment me batao tumhara favorite tip kaunsa tha aur dosto ke sath SHARE karo!"
+    "Agar ye strategy solid lagi toh abhi LIKE aur FOLLOW button dabao!",
+    "Comment me batao tumhara sabse bada struggle kya hai aur dosto ke sath SHARE karo!",
+    "Is reel ko SAVE kar lo taaki baad me bhool na jao, aur daily tips ke liye follow karo!"
 ]
 
 def fallback_local_script(topic):
     topic_cap = topic.strip().capitalize()
     hook = random.choice(HOOKS).format(topic=topic_cap)
     intro = random.choice(INTROS).format(topic=topic_cap)
-    tips = random.choice(TIPS_SETS)
-    cta = random.choice(CTAS)
-    rnd_num = random.randint(100, 999)
     
-    return f"""### 🎬 VIRAL SCRIPT FOR: {topic_cap}
+    # Pick 3 completely random unique tips every time
+    selected_tips = random.sample(TIPS_DATABASE, 3)
+    cta = random.choice(CTAS)
+    rnd_num = random.randint(1000, 9999)
+    
+    return f"""### 🎬 VIRAL SCRIPT FOR: {topic_cap} (Variant #{rnd_num})
 
 ---
 
@@ -126,9 +139,9 @@ def fallback_local_script(topic):
 ---
 
 #### 💡 3. MAIN VALUE CONTENT (10-45 Sec)
-* 📌 {tips[0].format(topic=topic_cap)}
-* 📌 {tips[1].format(topic=topic_cap)}
-* 📌 {tips[2].format(topic=topic_cap)}
+* 📌 **Tip 1:** {selected_tips[0]}
+* 📌 **Tip 2:** {selected_tips[1]}
+* 📌 **Tip 3:** {selected_tips[2]}
 
 ---
 
@@ -142,28 +155,30 @@ def fallback_local_script(topic):
 """
 
 def fetch_ai_script(topic):
-    try:
-        seed = random.randint(1000, 999999)
-        prompt_text = (
-            f"Write a viral short video script in Hinglish about '{topic}'. "
-            f"Strictly format it in markdown with separate line breaks for each section:\n"
-            f"1. Attention Hook (0-3s)\n"
-            f"2. Retention Intro (3-10s)\n"
-            f"3. Main Value Content (10-45s) - write 3 distinct bullet points on NEW lines.\n"
-            f"4. Call To Action (CTA)\n"
-            f"5. Viral Hashtags\n"
-            f"Make it unique and high retention (Seed: {seed})."
-        )
-        encoded_prompt = urllib.parse.quote(prompt_text)
-        url = f"https://text.pollinations.ai/{encoded_prompt}?model=openai&seed={seed}"
-        
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, context=ssl_context, timeout=12) as response:
-            result = response.read().decode('utf-8')
-            if result and len(result.strip()) > 50:
-                return result
-    except Exception:
-        pass
+    models = ["openai", "qwen-coder", "mistral"]
+    for model_name in models:
+        try:
+            seed = random.randint(100000, 999999)
+            prompt_text = (
+                f"Write a completely UNIQUE, fresh, high-retention viral short video script in Hinglish about '{topic}'. "
+                f"Make it radically different from previous versions (Variation Seed: {seed}). "
+                f"Strictly format in markdown:\n"
+                f"1. Attention Hook (0-3s)\n"
+                f"2. Retention Intro (3-10s)\n"
+                f"3. Main Value Content (10-45s) - write 3 fresh distinct practical tips on separate bullet lines.\n"
+                f"4. Call To Action (CTA)\n"
+                f"5. Viral Hashtags"
+            )
+            encoded_prompt = urllib.parse.quote(prompt_text)
+            url = f"https://text.pollinations.ai/{encoded_prompt}?model={model_name}&seed={seed}&cache=false"
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req, context=ssl_context, timeout=8) as response:
+                result = response.read().decode('utf-8')
+                if result and len(result.strip()) > 80 and ("Hook" in result or "ATTENTION" in result or "Tip" in result):
+                    return result
+        except Exception:
+            continue
     return None
 
 def generate_script_authenticated(username_state, topic, vip_key):
@@ -193,8 +208,10 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
 👉 **[WHATSAPP PAR BUY KARNE KE LIYE YAHAN CLICK KAREIN]({PAYMENT_LINK})**
 """, None
 
-        # Script Generation
+        # Try Live Multi-Model AI AI Generation first
         script_output = fetch_ai_script(topic)
+        
+        # If AI offline, use multi-combination dynamic fallback engine
         if not script_output:
             script_output = fallback_local_script(topic)
 
@@ -210,7 +227,7 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
             save_db(db)
 
         # File Creation
-        filename = f"Script_{topic.replace(' ', '_')}.txt"
+        filename = f"Script_{topic.replace(' ', '_')}_{random.randint(100, 999)}.txt"
         with open(filename, "w", encoding="utf-8") as f:
             f.write(script_output)
 
@@ -219,14 +236,14 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
     except Exception as e:
         return f"❌ Error: {str(e)}", None
 
-# --- STRICT UTR VERIFICATION ---
+# --- UTR VERIFICATION ---
 def submit_payment_utr(username, utr):
     if not username or username == "guest":
         return "❌ **Pehle Login Karo!** Account verify karne ke liye pehle login zaroori hai."
     
     utr_clean = utr.strip()
     if not utr_clean.isdigit() or len(utr_clean) != 12:
-        return "❌ **INVALID UTR / TRANSACTION ID!**\n\nKripya sahi **12-digit numeric UTR** number enter karein (Jaise: `425619082341`). Fake text accept nahi hoga!"
+        return "❌ **INVALID UTR / TRANSACTION ID!**\n\nKripya sahi **12-digit numeric UTR** number enter karein (Jaise: `425619082341`)."
     
     db = load_db()
     if utr_clean in db["payments"]:
@@ -273,43 +290,24 @@ def load_user_dashboard(username):
             
     return out
 
-# --- HIGH CONTRAST CSS (100% VISIBILITY FIX FOR ALL TEXT & HEADINGS) ---
+# --- HIGH CONTRAST CSS & UI FIX ---
 custom_css = """
-/* Background & Global Container */
 body, .gradio-container, .main {
     background-color: #090d16 !important;
     color: #ffffff !important;
 }
 
-/* Force All Headings to High Contrast Cyan/White */
-.gradio-container h1, 
-.gradio-container h2, 
-.gradio-container h3, 
-.gradio-container h4, 
-.gradio-container h5, 
-.gradio-container h6,
-.markdown-text h1, .markdown-text h2, .markdown-text h3, .markdown-text h4 {
+.gradio-container h1, .gradio-container h2, .gradio-container h3, 
+.gradio-container h4, .gradio-container h5, .gradio-container h6 {
     color: #38bdf8 !important;
     font-weight: 800 !important;
-    margin-top: 10px !important;
-    margin-bottom: 5px !important;
 }
 
-/* Force All Normal Text, List Items, and Paragraphs to Pure White */
-.gradio-container p, 
-.gradio-container li, 
-.gradio-container ul, 
-.gradio-container ol, 
-.gradio-container span, 
-.gradio-container label, 
-.markdown-text p, 
-.markdown-text li {
+.gradio-container p, .gradio-container li, .gradio-container span, .gradio-container label {
     color: #ffffff !important;
     font-size: 15px !important;
-    line-height: 1.6 !important;
 }
 
-/* High Contrast Blockquotes for Script Hooks */
 blockquote, blockquote p, blockquote span {
     background-color: #1e293b !important;
     border-left: 4px solid #8b5cf6 !important;
@@ -319,22 +317,28 @@ blockquote, blockquote p, blockquote span {
     font-weight: 600 !important;
 }
 
-/* Container Cards */
 div[class*="block"], .gr-form, .gr-box {
     background-color: #111827 !important;
     border: 1px solid #374151 !important;
     border-radius: 10px !important;
 }
 
-/* Input Text Fields */
 input, textarea, select {
     background-color: #1f2937 !important;
     color: #ffffff !important;
     border: 1px solid #4b5563 !important;
-    border-radius: 6px !important;
 }
 
-/* Primary Action Buttons */
+/* Download File Box Visibility Fix */
+.gr-file, div[data-testid="file-upload"] {
+    background-color: #1f2937 !important;
+    border: 1px solid #3b82f6 !important;
+}
+.gr-file span, .gr-file a, .gr-file div, .gr-file p {
+    color: #38bdf8 !important;
+    font-weight: 700 !important;
+}
+
 .gr-button-primary {
     background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%) !important;
     color: #ffffff !important;
