@@ -12,94 +12,73 @@ import gradio as gr
 ssl_context = ssl._create_unverified_context()
 
 # ================= CONFIGURATION =================
-MY_WHATSAPP_NUMBER = "917980890889"  # WhatsApp Number
-MY_UPI_ID = "7980890889@upi"          # UPI ID for Payment
-ADMIN_SECRET_KEY = "AZAM2026"         # Admin Secret Key
-DB_FILE = "app_database.db"          # SQLite Database File
+MY_WHATSAPP_NUMBER = "917980890889"
+MY_UPI_ID = "7980890889@upi"
+ADMIN_SECRET_KEY = "AZAM2026"
+JSON_DB_FILE = "users_data.json"
 
 PAYMENT_LINK = f"https://wa.me/{MY_WHATSAPP_NUMBER}?text=Bro%20mujhe%20Viral%20Script%20AI%20ka%20subscription%20chahiye"
 
-# --- 1. SQLITE DATABASE INITIALIZATION ---
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password TEXT,
-            vip_until TEXT,
-            scripts_used INTEGER DEFAULT 0,
-            created_at TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            topic TEXT,
-            script TEXT,
-            created_at TEXT
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS payments (
-            utr TEXT PRIMARY KEY,
-            username TEXT,
-            status TEXT,
-            created_at TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# --- PERSISTENT JSON DATABASE ENGINE (Render Disk Reset Protection) ---
+def load_db():
+    if not os.path.exists(JSON_DB_FILE):
+        default_data = {"users": {}, "history": [], "payments": {}}
+        with open(JSON_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(default_data, f, indent=4)
+        return default_data
+    try:
+        with open(JSON_DB_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"users": {}, "history": [], "payments": {}}
 
-init_db()
+def save_db(data):
+    with open(JSON_DB_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
-# --- AUTH & SECURITY FUNCTIONS ---
+# --- AUTH FUNCTIONS ---
 def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 def register_user(username, password):
     if not username or not password:
-        return "⚠️ Kripya username aur password dono enter karein!"
+        return "⚠️ Please username aur password dono enter karein!"
     
     u_clean = username.strip().lower()
     if len(u_clean) < 3:
         return "⚠️ Username kam se kam 3 characters ka hona chahiye!"
         
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT username FROM users WHERE username = ?", (u_clean,))
-    if cursor.fetchone():
-        conn.close()
-        return "❌ Ye username pehle se exist karta hai! Dusra try karein ya Login karein."
+    db = load_db()
+    if u_clean in db["users"]:
+        return "❌ Ye username pehle se exist karta hai! Abhi Login tab me jaakar login karein."
     
-    hashed = hash_pass(password)
     today = datetime.date.today().strftime("%Y-%m-%d")
-    cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?)", 
-                   (u_clean, hashed, "FREE", 0, today))
-    conn.commit()
-    conn.close()
-    return "✅ Account Safaltapoorvak Ban Gaya! Ab Login tab me jaakar login karein."
+    db["users"][u_clean] = {
+        "password": hash_pass(password),
+        "vip_until": "FREE",
+        "scripts_used": 0,
+        "created_at": today
+    }
+    save_db(db)
+    return f"✅ Account (@{u_clean}) ban gaya hai! Ab niche Login section me login karein."
 
 def login_user(username, password):
     if not username or not password:
         return "⚠️ Username aur Password enter karein!", "guest"
     
     u_clean = username.strip().lower()
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    hashed = hash_pass(password)
-    cursor.execute("SELECT username, vip_until, scripts_used FROM users WHERE username = ? AND password = ?", 
-                   (u_clean, hashed))
-    user = cursor.fetchone()
-    conn.close()
+    db = load_db()
     
-    if user:
-        return f"✅ **Login Successful! Welcome @{user[0]}**", user[0]
+    if u_clean not in db["users"]:
+        return "❌ User exist nahi karta! Pehle Register karein.", "guest"
+    
+    user = db["users"][u_clean]
+    if user["password"] == hash_pass(password):
+        return f"✅ **Welcome back @{u_clean}! Successfully Logged In.**", u_clean
     else:
-        return "❌ Galat Username ya Password!", "guest"
+        return "❌ Galat Password! Dubara try karein.", "guest"
 
-# --- AI & FALLBACK SCRIPT GENERATOR ---
+# --- SCRIPT GENERATION ENGINE ---
 HOOKS = [
     "Ruko! Agar tum {topic} me 10x growth chahte ho, toh ye 3 secrets miss mat karna!",
     "Kya tum bhi {topic} me ye sabse badi galti kar rahe ho? Dhyan se suno!",
@@ -113,15 +92,15 @@ INTROS = [
 
 TIPS_SETS = [
     [
-        "**Tip 1:** Always focus on strong execution and daily discipline.",
-        "**Tip 2:** Analyze top performers in {topic} and reverse-engineer their success.",
-        "**Tip 3:** Never stop learning—upgrade your techniques every single week."
+        "Tip 1: Always focus on strong execution and daily discipline.",
+        "Tip 2: Analyze top performers in {topic} and reverse-engineer their success.",
+        "Tip 3: Never stop learning—upgrade your techniques every single week."
     ]
 ]
 
 CTAS = [
-    "Agar ye content helpful laga toh abhi **LIKE** aur **FOLLOW** kar lo!",
-    "Comment me batao tumhara favorite tip kaunsa tha aur dosto ke sath **SHARE** karo!"
+    "Agar ye content helpful laga toh abhi LIKE aur FOLLOW kar lo!",
+    "Comment me batao tumhara favorite tip kaunsa tha aur dosto ke sath SHARE karo!"
 ]
 
 def fallback_local_script(topic):
@@ -132,33 +111,33 @@ def fallback_local_script(topic):
     cta = random.choice(CTAS)
     rnd_num = random.randint(100, 999)
     
-    return f"""### 🎬 **VIRAL SCRIPT FOR: {topic_cap}**
+    return f"""### 🎬 VIRAL SCRIPT FOR: {topic_cap}
 
 ---
 
-#### 📌 **1. ATTENTION HOOK (0-3 Sec)**
+#### 📌 1. ATTENTION HOOK (0-3 Sec)
 > 💥 "{hook}"
 
 ---
 
-#### ⚡ **2. RETENTION INTRO (3-10 Sec)**
+#### ⚡ 2. RETENTION INTRO (3-10 Sec)
 > 🎯 "{intro}"
 
 ---
 
-#### 💡 **3. MAIN VALUE CONTENT (10-45 Sec)**
+#### 💡 3. MAIN VALUE CONTENT (10-45 Sec)
 * 📌 {tips[0].format(topic=topic_cap)}
 * 📌 {tips[1].format(topic=topic_cap)}
 * 📌 {tips[2].format(topic=topic_cap)}
 
 ---
 
-#### 🚀 **4. CALL TO ACTION (CTA)**
+#### 🚀 4. CALL TO ACTION (CTA)
 > 🔥 "{cta}"
 
 ---
 
-#### 🏷️ **5. VIRAL HASHTAGS**
+#### 🏷️ 5. VIRAL HASHTAGS
 `#{topic_cap.replace(' ', '')}` `#{topic_cap.replace(' ', '')}Tips` `#ViralReels` `#TrendingNow` `#{rnd_num}`
 """
 
@@ -193,24 +172,21 @@ def generate_script_authenticated(username_state, topic, vip_key):
             return "⚠️ **Pehle video ka topic enter karein!**", None
         
         target_user = username_state.strip().lower() if username_state else "guest"
-        
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
+        db = load_db()
         
         is_vip = False
-        if target_user != "guest":
-            cursor.execute("SELECT vip_until, scripts_used FROM users WHERE username = ?", (target_user,))
-            user_data = cursor.fetchone()
-            if user_data:
-                vip_until, scripts_used = user_data[0], user_data[1]
-                if vip_until != "FREE":
-                    today = datetime.date.today().strftime("%Y-%m-%d")
-                    if vip_until >= today:
-                        is_vip = True
-                
-                if not is_vip and scripts_used >= 2 and vip_key.strip() != ADMIN_SECRET_KEY:
-                    conn.close()
-                    return f"""### 🔒 **FREE LIMIT EXHAUSTED FOR (@{target_user})**
+        if target_user != "guest" and target_user in db["users"]:
+            user = db["users"][target_user]
+            vip_until = user.get("vip_until", "FREE")
+            scripts_used = user.get("scripts_used", 0)
+            
+            if vip_until != "FREE":
+                today = datetime.date.today().strftime("%Y-%m-%d")
+                if vip_until >= today:
+                    is_vip = True
+            
+            if not is_vip and scripts_used >= 2 and vip_key.strip() != ADMIN_SECRET_KEY:
+                return f"""### 🔒 FREE LIMIT EXHAUSTED FOR (@{target_user})
 
 Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment Tab** me jaakar ₹299 pay karke 12-Digit UTR enter karein ya VIP Key use karein!
 
@@ -222,13 +198,16 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
         if not script_output:
             script_output = fallback_local_script(topic)
 
-        # Database Update
-        if target_user != "guest":
-            cursor.execute("UPDATE users SET scripts_used = scripts_used + 1 WHERE username = ?", (target_user,))
-            cursor.execute("INSERT INTO history (username, topic, script, created_at) VALUES (?, ?, ?, ?)",
-                           (target_user, topic, script_output, datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-            conn.commit()
-        conn.close()
+        # Update JSON DB
+        if target_user != "guest" and target_user in db["users"]:
+            db["users"][target_user]["scripts_used"] += 1
+            db["history"].append({
+                "username": target_user,
+                "topic": topic,
+                "script": script_output,
+                "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
+            save_db(db)
 
         # File Creation
         filename = f"Script_{topic.replace(' ', '_')}.txt"
@@ -240,95 +219,119 @@ Aapki 2 free scripts complete ho chuki hain! Unlimited access ke liye **Payment 
     except Exception as e:
         return f"❌ Error: {str(e)}", None
 
-# --- STRICT UTR VERIFICATION SYSTEM (FIXED BUG) ---
+# --- STRICT UTR VERIFICATION ---
 def submit_payment_utr(username, utr):
     if not username or username == "guest":
-        return "❌ **Pehle Login Karo!** Payment verify karne ke liye pehle account login hona zaroori hai."
+        return "❌ **Pehle Login Karo!** Account verify karne ke liye pehle login zaroori hai."
     
     utr_clean = utr.strip()
-    
-    # STRICT VALIDATION: Exactly 12 digits and ONLY NUMBERS
     if not utr_clean.isdigit() or len(utr_clean) != 12:
-        return "❌ **INVALID UTR / TRANSACTION ID!**\n\nKripya sahi **12-digit numeric UTR** number enter karein (Jaise: `425619082341`). Fake text, letters ya galat length accept nahi hogi!"
+        return "❌ **INVALID UTR / TRANSACTION ID!**\n\nKripya sahi **12-digit numeric UTR** number enter karein (Jaise: `425619082341`). Fake text accept nahi hoga!"
     
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    db = load_db()
+    if utr_clean in db["payments"]:
+        return "⚠️ **Ye UTR pehle se process ho chuka hai!** Naya transaction ID daalein."
     
-    # Check duplicate UTR
-    cursor.execute("SELECT utr FROM payments WHERE utr = ?", (utr_clean,))
-    if cursor.fetchone():
-        conn.close()
-        return "⚠️ **Ye UTR pehle se process ho chuka hai!** Kripya apna new Transaction ID daalein."
-    
-    # Valid UTR - Grant 30 Days VIP
     expiry = (datetime.date.today() + datetime.timedelta(days=30)).strftime("%Y-%m-%d")
-    cursor.execute("UPDATE users SET vip_until = ? WHERE username = ?", (expiry, username.strip().lower()))
-    cursor.execute("INSERT INTO payments VALUES (?, ?, ?, ?)", 
-                   (utr_clean, username.strip().lower(), "APPROVED", datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-    conn.commit()
-    conn.close()
     
-    return f"🎉 **PAYMENT SUCCESSFUL!**\n\nUTR `{utr_clean}` successfully verify ho gaya hai! Account **@{username}** ko **{expiry}** tak VIP Unlimited Access mil gaya hai."
+    if username in db["users"]:
+        db["users"][username]["vip_until"] = expiry
+        db["payments"][utr_clean] = {
+            "username": username,
+            "status": "APPROVED",
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+        save_db(db)
+        return f"🎉 **PAYMENT SUCCESSFUL!**\n\nUTR `{utr_clean}` verify ho gaya hai! Account **@{username}** ko **{expiry}** tak VIP Access mil gaya hai."
+    else:
+        return "❌ User Account nahi mila. Pehle Login karein!"
 
 # --- DASHBOARD LOAD ---
 def load_user_dashboard(username):
     if not username or username == "guest":
         return "⚠️ Dashboard dekhne ke liye pehle **Login** karein."
     
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT vip_until, scripts_used, created_at FROM users WHERE username = ?", (username.strip().lower(),))
-    u = cursor.fetchone()
+    db = load_db()
+    if username not in db["users"]:
+        return "⚠️ User account nahi mila."
     
-    cursor.execute("SELECT topic, created_at, script FROM history WHERE username = ? ORDER BY id DESC LIMIT 10", (username.strip().lower(),))
-    history_rows = cursor.fetchall()
-    conn.close()
-    
-    status = u[0] if u else "FREE"
-    used = u[1] if u else 0
+    u = db["users"][username]
+    user_history = [h for h in db["history"] if h["username"] == username]
+    user_history.reverse()
     
     out = f"### 👤 **User Profile Dashboard**\n"
     out += f"* 🆔 **Username:** `@{username}`\n"
-    out += f"* 💎 **Subscription Status:** `{status}`\n"
-    out += f"* 📊 **Total Scripts Generated:** `{used}`\n\n"
+    out += f"* 💎 **Subscription Status:** `{u.get('vip_until', 'FREE')}`\n"
+    out += f"* 📊 **Total Scripts Generated:** `{u.get('scripts_used', 0)}`\n\n"
     out += f"--- \n### 📜 **Saved Scripts History**\n"
     
-    if not history_rows:
+    if not user_history:
         out += "\n*Abhi tak koi saved script nahi hai. Generator tab me jaakar script banayein!*"
     else:
-        for idx, r in enumerate(history_rows, 1):
-            out += f"\n#### {idx}. 🎯 Topic: **{r[0]}** *(Date: {r[1]})*\n```markdown\n{r[2][:250]}...\n```\n"
+        for idx, r in enumerate(user_history[:10], 1):
+            out += f"\n#### {idx}. 🎯 Topic: **{r['topic']}** *(Date: {r['created_at']})*\n```markdown\n{r['script'][:250]}...\n```\n"
             
     return out
 
-# --- HIGH CONTRAST DARK MODE CSS (MOBILE FRIENDLY) ---
+# --- HIGH CONTRAST CSS (100% VISIBILITY FIX FOR ALL TEXT & HEADINGS) ---
 custom_css = """
-/* Force High Contrast Text & Colors */
-body, .gradio-container {
-    background-color: #0b0f19 !important;
+/* Background & Global Container */
+body, .gradio-container, .main {
+    background-color: #090d16 !important;
     color: #ffffff !important;
-    font-family: 'Inter', sans-serif !important;
 }
 
-/* Fix Unreadable Text Bug */
-p, span, label, h1, h2, h3, h4, h5, h6, .markdown-text, .gr-text-input, code {
-    color: #f1f5f9 !important;
+/* Force All Headings to High Contrast Cyan/White */
+.gradio-container h1, 
+.gradio-container h2, 
+.gradio-container h3, 
+.gradio-container h4, 
+.gradio-container h5, 
+.gradio-container h6,
+.markdown-text h1, .markdown-text h2, .markdown-text h3, .markdown-text h4 {
+    color: #38bdf8 !important;
+    font-weight: 800 !important;
+    margin-top: 10px !important;
+    margin-bottom: 5px !important;
 }
 
-/* Card Boxes */
+/* Force All Normal Text, List Items, and Paragraphs to Pure White */
+.gradio-container p, 
+.gradio-container li, 
+.gradio-container ul, 
+.gradio-container ol, 
+.gradio-container span, 
+.gradio-container label, 
+.markdown-text p, 
+.markdown-text li {
+    color: #ffffff !important;
+    font-size: 15px !important;
+    line-height: 1.6 !important;
+}
+
+/* High Contrast Blockquotes for Script Hooks */
+blockquote, blockquote p, blockquote span {
+    background-color: #1e293b !important;
+    border-left: 4px solid #8b5cf6 !important;
+    color: #f8fafc !important;
+    padding: 10px 14px !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+}
+
+/* Container Cards */
 div[class*="block"], .gr-form, .gr-box {
-    background-color: #161e2e !important;
+    background-color: #111827 !important;
     border: 1px solid #374151 !important;
     border-radius: 10px !important;
 }
 
-/* Input Fields */
+/* Input Text Fields */
 input, textarea, select {
-    background-color: #1e293b !important;
+    background-color: #1f2937 !important;
     color: #ffffff !important;
-    border: 1px solid #475569 !important;
+    border: 1px solid #4b5563 !important;
     border-radius: 6px !important;
-    font-size: 15px !important;
 }
 
 /* Primary Action Buttons */
@@ -337,20 +340,6 @@ input, textarea, select {
     color: #ffffff !important;
     font-weight: 700 !important;
     border: none !important;
-    border-radius: 8px !important;
-}
-
-/* Active Tabs */
-button[role="tab"] {
-    color: #9ca3af !important;
-    font-weight: 600 !important;
-    background: transparent !important;
-}
-
-button[role="tab"][aria-selected="true"] {
-    color: #ffffff !important;
-    border-bottom: 3px solid #8b5cf6 !important;
-    background-color: #1e293b !important;
 }
 """
 
@@ -361,8 +350,8 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro") as demo:
     
     gr.HTML("""
     <div style="background: linear-gradient(90deg, #1e1b4b 0%, #311b92 100%); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid #6366f1; margin-bottom: 15px;">
-        <h1 style="color: #ffffff; margin:0; font-size: 26px; font-weight: 800;">⚡ VIRAL SCRIPT AI PRO</h1>
-        <p style="color: #e2e8f0; margin-top: 5px; font-size: 14px;">Instant High Retention Scripts & Automated SaaS Platform</p>
+        <h1 style="color: #ffffff !important; margin:0; font-size: 26px; font-weight: 800;">⚡ VIRAL SCRIPT AI PRO</h1>
+        <p style="color: #e2e8f0 !important; margin-top: 5px; font-size: 14px;">Instant High Retention Scripts & SaaS Platform</p>
     </div>
     """)
     
@@ -400,7 +389,7 @@ with gr.Blocks(css=custom_css, title="Viral Script AI Pro") as demo:
 
     with gr.Tab("🎬 Script Generator"):
         with gr.Row():
-            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Boxing Workout, Gym Motivation, Mobile Editing...", scale=2)
+            topic_input = gr.Textbox(label="🎯 Enter Video Topic", placeholder="e.g. Boxing Workout, Gym Motivation...", scale=2)
             key_input = gr.Textbox(label="🔑 VIP Key / Admin Pass (Optional)", type="password", scale=1)
         
         submit_btn = gr.Button("🔥 Generate Viral Script", variant="primary")
